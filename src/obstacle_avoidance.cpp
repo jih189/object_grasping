@@ -65,6 +65,7 @@ void blobsCallBack (const cmvision::Blobs& blobsIn) //this gets the centroid of 
 
 		blobs_centroid_vector.clear();
 
+        std::cout << "analysis" << std::endl;
 		for (int i = 0; i < blobsIn.blob_count; i++){
 			ROS_INFO("Blob found");
                 if (blobsIn.blobs[i].red == 0 && blobsIn.blobs[i].green == 255 && blobsIn.blobs[i].blue == 0){
@@ -73,7 +74,7 @@ void blobsCallBack (const cmvision::Blobs& blobsIn) //this gets the centroid of 
                     num_goal_blobs++;
                 }
 		}
-        ROS_INFO("goal position is: %d and %d\n", goal_sum_x / num_goal_blobs, goal_sum_y / num_goal_blobs);
+        std::cout << "goal is " << goal_sum_x / num_goal_blobs << ":" << goal_sum_y / num_goal_blobs<< std::endl;
     }  
 }
 
@@ -148,7 +149,7 @@ int main (int argc, char** argv)
   while(ros::ok()){
 
     T.linear.x = 0.0; T.linear.y = 0.0; T.linear.z = 0.0;
-    T.angular.x = 0.0; T.angular.y = 0.0; T.angular.z = -0.5;
+    T.angular.x = 0.0; T.angular.y = 0.0; T.angular.z = 0.0;//-0.5;
     std::cout << "Spin" << std::endl;
     //Looking for goal
     if (state == 0){
