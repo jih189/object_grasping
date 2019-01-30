@@ -100,6 +100,7 @@ void PointCloud_Callback (const PointCloud::ConstPtr& cloud){
   PCL_closest_points.clear();
   PCL_closest_points_x.clear();
   PCL_closest_points_y.clear();
+  std::cout << "analysis 2" << std::endl;
 
   double z_min = 100;
   //Iterate through all the points in the image

@@ -8,6 +8,8 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  message_generation
+  sensor_msgs
 )
 
 find_package( PCL REQUIRED )
@@ -69,10 +71,11 @@ find_package( PCL REQUIRED )
 # )
 
 ## Generate added messages and services with any dependencies listed here
-#generate_messages(
-#  DEPENDENCIES
-#  std_msgs
-#)
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  sensor_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -106,7 +109,7 @@ find_package( PCL REQUIRED )
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES obstacle_avoidance
-#  CATKIN_DEPENDS roscpp rospy std_msgs
+  CATKIN_DEPENDS roscpp rospy std_msgs
 #  DEPENDS system_lib
 )
 
