@@ -39,11 +39,7 @@ std::vector<uint16_t> goal_xs;
 
 void blobsCallBack (const cmvision::Blobs& blobsIn) //this gets the centroid of the color blob corresponding to the goal.
 {
-    if (blobsIn.blob_count > 0){
-		uint16_t blob_sum, blob_centroid_sum, num_blobs;
-		int x_sum = 0;
-		double z_sum = 0;
-		uint16_t num_goal_blobs = 0;
+    if (state == 0 && blobsIn.blob_count > 0){
 
 		/************************************************************
 		* These blobsIn.blobs[i].red, blobsIn.blobs[i].green, and blobsIn.blobs[i].blue values depend on the
@@ -61,21 +57,34 @@ void blobsCallBack (const cmvision::Blobs& blobsIn) //this gets the centroid of 
 		* Similarly, for yellow blob, blobsIn.blobs[i].red and blobsIn.blobs[i].green will be 255, and blobsIn.blobs[i].blue will be 0.
 		************************************************************/
 		
-		std::vector<int> blobs_centroid_vector;
+        float max_area = 0;
+        int goalx = 0;
+        int goaly = 0;
 
-		blobs_centroid_vector.clear();
-
-        std::cout << "analysis" << std::endl;
 		for (int i = 0; i < blobsIn.blob_count; i++){
-			ROS_INFO("Blob found");
-                if (blobsIn.blobs[i].red == 0 && blobsIn.blobs[i].green == 255 && blobsIn.blobs[i].blue == 0){
-                    goal_sum_x += blobsIn.blobs[i].x;
-                    goal_sum_y += blobsIn.blobs[i].y;
-                    num_goal_blobs++;
-                }
+            if(blobsIn.blobs[i].area > max_area){
+                max_area = blobsIn.blobs[i].area;
+                goalx = blobsIn.blobs[i].x;
+                goaly = blobsIn.blobs[i].y;
+            }
 		}
-        std::cout << "goal is " << goal_sum_x / num_goal_blobs << ":" << goal_sum_y / num_goal_blobs<< std::endl;
+        if(goalx > 450){
+            std::cout << "on right side " << std::endl;
+            state = 3;
+        }
+        else if(goalx < 240){
+            std::cout << "on left side " << std::endl;
+            state = 4;
+        }
+        else{
+            std::cout << "in the forward" << std::endl;
+            state = 5;
+        }
     }  
+    else if(state == 0){
+        std::cout << "can't find the goal" << std::endl;
+        state = 6;
+    }
 }
 
 /************************************************************
@@ -91,8 +100,10 @@ void PointCloud_Callback (const PointCloud::ConstPtr& cloud){
   unsigned int n = 0;
   int s,t;
   double min_z = 100, x, y;
+  double totalx = 0.0, totaly = 0.0;
+  int totalnum = 0;
   int y_point = 0;
-  double ZTHRESH = 0.5;
+  double ZTHRESH = 0.7;
 
   std::vector<double> PCL_closest_points;
   std::vector<double> PCL_closest_points_x;
@@ -100,7 +111,6 @@ void PointCloud_Callback (const PointCloud::ConstPtr& cloud){
   PCL_closest_points.clear();
   PCL_closest_points_x.clear();
   PCL_closest_points_y.clear();
-  std::cout << "analysis 2" << std::endl;
 
   double z_min = 100;
   //Iterate through all the points in the image
@@ -109,6 +119,9 @@ void PointCloud_Callback (const PointCloud::ConstPtr& cloud){
     for(int i = 0; i < 640; i++){
       const pcl::PointXYZ & pt=cloud->points[640*(180+k)+(i)];
       if((pt.z < ZTHRESH)){
+        totalx += i;
+        totaly += k;
+        totalnum += 1;
         PCL_closest_points_x.push_back(i);
         PCL_closest_points.push_back(pt.z);     
         //Find min z
@@ -119,13 +132,23 @@ void PointCloud_Callback (const PointCloud::ConstPtr& cloud){
       }
     }
   }
-  /*
-  if(got_goal_blobs){
-    const pcl::PointXYZ& ptg = cloud->points[640 * (goal_loc_y - 1) + (goal_loc_x - 1)];
-    goal_depth = ptg.z;
-  }
-  */
 
+  if(totalnum > 4000){
+      /*
+      std::cout << "number of points: " << totalnum << std::endl;
+      std::cout << "x = " << totalx / totalnum << std::endl;
+      */
+      std::cout << "found obstacle" << std::endl;
+      if(totalx / totalnum > 320){
+          state = 2;
+      }
+      else{
+          state = 1;
+      }
+  }
+  else{
+      state = 0;
+  }
 }
 
 int main (int argc, char** argv)
@@ -151,13 +174,21 @@ int main (int argc, char** argv)
 
     T.linear.x = 0.0; T.linear.y = 0.0; T.linear.z = 0.0;
     T.angular.x = 0.0; T.angular.y = 0.0; T.angular.z = 0.0;//-0.5;
-    std::cout << "Spin" << std::endl;
     //Looking for goal
-    if (state == 0){
-
+    if (state == 1){
+        T.angular.z = -0.5;
     } 
-    else if (state == 1) {
-
+    else if (state == 2) {
+        T.angular.z = 0.5;
+    }
+    else if (state == 3){
+        T.angular.z = -0.5;
+    }
+    else if (state == 4){
+        T.angular.z = 0.5;
+    }
+    else if (state == 5){
+        T.linear.x = 0.2;
     }
 
     // Spin

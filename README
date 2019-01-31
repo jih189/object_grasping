@@ -1,0 +1,6 @@
+you need to run several thing first
+roscore
+roslaunch turtlebot_bringup minimal.launch
+roslaunch astra_launch astra_pro.launch
+rosrun cmvision cmvision image:=/camera/rgb/image_raw
+rosrun obstacle_avoidance obstacle_avoidance_node

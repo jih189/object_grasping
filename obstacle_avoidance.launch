@@ -1,0 +1,5 @@
+<launch>
+    <arg name="image" default="/your/image/topic"/>
+
+    <node name="cmvision" pkg="cmvision" type="cmvision" args="image:=$(arg image)" output="screen:">
+</launch>
