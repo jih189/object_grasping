@@ -8,3 +8,8 @@ cd ~/catkin_ws
 catkin_make
 source ~/catkin_ws/devel/setup.bash
 rosrun obstacle_avoidance obstacle_avoidance_node
+
+TODO
+avoid ob : add state
+
+Find the paper state 0
