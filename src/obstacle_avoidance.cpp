@@ -28,6 +28,7 @@ int16_t goal_sum_y = 0;
 double goal_area = 0;
 double Center = 320;
 std::vector<uint16_t> goal_xs;
+bool found_goal = false;
 
 /************************************************************
  * Function Name: blobsCallBack
@@ -39,8 +40,12 @@ std::vector<uint16_t> goal_xs;
 
 void blobsCallBack (const cmvision::Blobs& blobsIn) //this gets the centroid of the color blob corresponding to the goal.
 {
-    if (state == 0 && blobsIn.blob_count > 0){
 
+    if (state == 6){
+        return;
+    }
+    if ((state == 0 || state == 3 || state == 4 || state == 5)&& blobsIn.blob_count > 0){
+        
 		/************************************************************
 		* These blobsIn.blobs[i].red, blobsIn.blobs[i].green, and blobsIn.blobs[i].blue values depend on the
 		* values those are provided in the colors.txt file.
@@ -60,7 +65,6 @@ void blobsCallBack (const cmvision::Blobs& blobsIn) //this gets the centroid of 
         float max_area = 0;
         int goalx = 0;
         int goaly = 0;
-
 		for (int i = 0; i < blobsIn.blob_count; i++){
             if(blobsIn.blobs[i].area > max_area){
                 max_area = blobsIn.blobs[i].area;
@@ -68,6 +72,8 @@ void blobsCallBack (const cmvision::Blobs& blobsIn) //this gets the centroid of 
                 goaly = blobsIn.blobs[i].y;
             }
 		}
+
+        found_goal = true; 
         if(goalx > 450){
             std::cout << "on right side " << std::endl;
             state = 3;
@@ -80,10 +86,15 @@ void blobsCallBack (const cmvision::Blobs& blobsIn) //this gets the centroid of 
             std::cout << "in the forward" << std::endl;
             state = 5;
         }
-    }  
+    }
+
+    //Cannot find goal
     else if(state == 0){
         std::cout << "can't find the goal" << std::endl;
-        state = 6;
+        found_goal = false; 
+    // other states TODO
+    }else{
+        found_goal = false;
     }
 }
 
@@ -113,6 +124,9 @@ void PointCloud_Callback (const PointCloud::ConstPtr& cloud){
   PCL_closest_points_y.clear();
 
   double z_min = 100;
+  if (state ==6){
+       return;
+  }
   //Iterate through all the points in the image
   //Convert from pcl to cm
   for(int k = 0; k < 240; k++){
@@ -138,17 +152,27 @@ void PointCloud_Callback (const PointCloud::ConstPtr& cloud){
       std::cout << "number of points: " << totalnum << std::endl;
       std::cout << "x = " << totalx / totalnum << std::endl;
       */
+
+
       std::cout << "found obstacle" << std::endl;
       if(totalx / totalnum > 320){
-          state = 2;
+          if (found_goal){
+              state = 6;
+              return;
+          }else{
+              state = 1;
+          }
+         // std::cout << "Many points? State 1" << std::endl;
       }
       else{
-          state = 1;
+    //      state = 2;
+         // std::cout << "Less points? State 2?" << std::endl;
       }
   }
-  else{
-      state = 0;
-  }
+
+  //No obs, safe
+  //else{
+ // }
 }
 
 int main (int argc, char** argv)
@@ -174,21 +198,39 @@ int main (int argc, char** argv)
 
     T.linear.x = 0.0; T.linear.y = 0.0; T.linear.z = 0.0;
     T.angular.x = 0.0; T.angular.y = 0.0; T.angular.z = 0.0;//-0.5;
+    std::cout << state << std::endl;
     //Looking for goal
-    if (state == 1){
+    if(state == 0){
+        T.angular.z = 0.5;
+    }
+    else if (state == 1){
         T.angular.z = -0.5;
+        state = 2;
+ //       state = 0;
     } 
     else if (state == 2) {
-        T.angular.z = 0.5;
+        T.linear.x = 0.2;
+        state = 7;
+
+ //       state =0;
+        
     }
     else if (state == 3){
         T.angular.z = -0.5;
     }
     else if (state == 4){
-        T.angular.z = 0.5;
+        T.angular.z = 0.5; 
     }
-    else if (state == 5){
+    else if (state == 5){ 
+        T.angular.z = 0;
         T.linear.x = 0.2;
+    }else if (state ==6){
+        T.linear.x = 0;
+        T.angular.z = 0;
+    }
+    else if (state == 7){
+        T.angular.z = 0.5;
+        state = 0;
     }
 
     // Spin
