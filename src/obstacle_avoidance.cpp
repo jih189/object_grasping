@@ -28,6 +28,8 @@ int16_t goal_sum_y = 0;
 double goal_area = 0;
 double Center = 320;
 std::vector<uint16_t> goal_xs;
+bool is_pre_obs = false;
+
 
 /************************************************************
  * Function Name: blobsCallBack
@@ -83,7 +85,7 @@ void blobsCallBack (const cmvision::Blobs& blobsIn) //this gets the centroid of 
     }  
     else if(state == 0){
         std::cout << "can't find the goal" << std::endl;
-        state = 6;
+//        state = 6;
     }
 }
 
@@ -139,6 +141,8 @@ void PointCloud_Callback (const PointCloud::ConstPtr& cloud){
       std::cout << "x = " << totalx / totalnum << std::endl;
       */
       std::cout << "found obstacle" << std::endl;
+
+      is_pre_obs = true;
       if(totalx / totalnum > 320){
           state = 2;
       }
@@ -147,7 +151,11 @@ void PointCloud_Callback (const PointCloud::ConstPtr& cloud){
       }
   }
   else{
-      state = 0;
+ //     if(is_pre_obs){
+ //        state = 6;
+ //      }else{
+         state = 0;
+ //      }
   }
 }
 
@@ -168,18 +176,25 @@ int main (int argc, char** argv)
   ros::Publisher velocityPublisher = nh.advertise<geometry_msgs::Twist>("cmd_vel_mux/input/teleop", 1000);
 
   ros::Rate loop_rate(10);
+
+  ros::Rate sleep(100);
   geometry_msgs::Twist T;
 
   while(ros::ok()){
 
     T.linear.x = 0.0; T.linear.y = 0.0; T.linear.z = 0.0;
     T.angular.x = 0.0; T.angular.y = 0.0; T.angular.z = 0.0;//-0.5;
+
+    std::cout << state << std::endl;
     //Looking for goal
-    if (state == 1){
+    if (state == 0){
+        T.angular.z = -0.5;
+    }
+    else if (state == 1){
         T.angular.z = -0.5;
     } 
     else if (state == 2) {
-        T.angular.z = 0.5;
+        T.angular.z = -0.5;
     }
     else if (state == 3){
         T.angular.z = -0.5;
@@ -190,7 +205,11 @@ int main (int argc, char** argv)
     else if (state == 5){
         T.linear.x = 0.2;
     }
-
+    else if(state == 6){
+        T.linear.x = 0.2;
+        sleep.sleep();
+        state = 0;
+    }
     // Spin
     ros::spinOnce();
     loop_rate.sleep();
