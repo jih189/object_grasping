@@ -1,4 +1,4 @@
-/************************************************************
+/***********************************************************
  * Name: obstacle_avoidance.cpp
  * Author: Alyssa Kubota, Sanmi Adeleye
  * Date: 02/18/2018
@@ -28,7 +28,9 @@ int16_t goal_sum_y = 0;
 double goal_area = 0;
 double Center = 320;
 std::vector<uint16_t> goal_xs;
-bool found_goal = false;
+bool is_pre_obs = false;
+
+>>>>>>> my-temp-branch
 
 /************************************************************
  * Function Name: blobsCallBack
@@ -40,10 +42,6 @@ bool found_goal = false;
 
 void blobsCallBack (const cmvision::Blobs& blobsIn) //this gets the centroid of the color blob corresponding to the goal.
 {
-
-    if (state == 6){
-        return;
-    }
     if ((state == 0 || state == 3 || state == 4 || state == 5)&& blobsIn.blob_count > 0){
         
 		/************************************************************
@@ -90,12 +88,9 @@ void blobsCallBack (const cmvision::Blobs& blobsIn) //this gets the centroid of 
 
     //Cannot find goal
     else if(state == 0){
-        std::cout << "can't find the goal" << std::endl;
-        found_goal = false; 
-    // other states TODO
-    }else{
-        found_goal = false;
-    }
+        std::cout << "can't find the goal, turning" << std::endl;
+//        state = 6;
+    }else
 }
 
 /************************************************************
@@ -155,6 +150,8 @@ void PointCloud_Callback (const PointCloud::ConstPtr& cloud){
 
 
       std::cout << "found obstacle" << std::endl;
+
+      is_pre_obs = true;
       if(totalx / totalnum > 320){
           if (found_goal){
               state = 6;
@@ -169,10 +166,14 @@ void PointCloud_Callback (const PointCloud::ConstPtr& cloud){
          // std::cout << "Less points? State 2?" << std::endl;
       }
   }
-
-  //No obs, safe
-  //else{
- // }
+  else{
+      if(is_pre_obs){
+         state = 6;
+ //        is_pre_obs = false;
+       }else{
+         state = 0;
+       }
+  }
 }
 
 int main (int argc, char** argv)
@@ -192,16 +193,19 @@ int main (int argc, char** argv)
   ros::Publisher velocityPublisher = nh.advertise<geometry_msgs::Twist>("cmd_vel_mux/input/teleop", 1000);
 
   ros::Rate loop_rate(10);
+
+//  ros::Rate sleep(300000);
   geometry_msgs::Twist T;
 
   while(ros::ok()){
 
     T.linear.x = 0.0; T.linear.y = 0.0; T.linear.z = 0.0;
     T.angular.x = 0.0; T.angular.y = 0.0; T.angular.z = 0.0;//-0.5;
+
     std::cout << state << std::endl;
     //Looking for goal
-    if(state == 0){
-        T.angular.z = 0.5;
+    if (state == 0){
+        T.angular.z = -0.5;
     }
     else if (state == 1){
         T.angular.z = -0.5;
@@ -209,11 +213,7 @@ int main (int argc, char** argv)
  //       state = 0;
     } 
     else if (state == 2) {
-        T.linear.x = 0.2;
-        state = 7;
-
- //       state =0;
-        
+        T.angular.z = -0.5;
     }
     else if (state == 3){
         T.angular.z = -0.5;
@@ -232,7 +232,9 @@ int main (int argc, char** argv)
         T.angular.z = 0.5;
         state = 0;
     }
-
+    else if(state == 6){
+        T.linear.x = 0.2;
+    }
     // Spin
     ros::spinOnce();
     loop_rate.sleep();
