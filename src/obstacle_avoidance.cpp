@@ -1,4 +1,4 @@
-/************************************************************
+/***********************************************************
  * Name: obstacle_avoidance.cpp
  * Author: Alyssa Kubota, Sanmi Adeleye
  * Date: 02/18/2018
@@ -41,7 +41,7 @@ bool is_pre_obs = false;
 
 void blobsCallBack (const cmvision::Blobs& blobsIn) //this gets the centroid of the color blob corresponding to the goal.
 {
-    if (state == 0 && blobsIn.blob_count > 0){
+    if ( (state == 0 || state == 6) && blobsIn.blob_count > 0){
 
 		/************************************************************
 		* These blobsIn.blobs[i].red, blobsIn.blobs[i].green, and blobsIn.blobs[i].blue values depend on the
@@ -84,9 +84,9 @@ void blobsCallBack (const cmvision::Blobs& blobsIn) //this gets the centroid of 
         }
     }  
     else if(state == 0){
-        std::cout << "can't find the goal" << std::endl;
+        std::cout << "can't find the goal, turning" << std::endl;
 //        state = 6;
-    }
+    }else
 }
 
 /************************************************************
@@ -151,11 +151,12 @@ void PointCloud_Callback (const PointCloud::ConstPtr& cloud){
       }
   }
   else{
- //     if(is_pre_obs){
- //        state = 6;
- //      }else{
+      if(is_pre_obs){
+         state = 6;
+ //        is_pre_obs = false;
+       }else{
          state = 0;
- //      }
+       }
   }
 }
 
@@ -177,7 +178,7 @@ int main (int argc, char** argv)
 
   ros::Rate loop_rate(10);
 
-  ros::Rate sleep(100);
+//  ros::Rate sleep(300000);
   geometry_msgs::Twist T;
 
   while(ros::ok()){
@@ -207,8 +208,6 @@ int main (int argc, char** argv)
     }
     else if(state == 6){
         T.linear.x = 0.2;
-        sleep.sleep();
-        state = 0;
     }
     // Spin
     ros::spinOnce();
