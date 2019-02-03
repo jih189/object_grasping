@@ -1,4 +1,4 @@
-/***********************************************************
+/**********************************************************
  * Name: obstacle_avoidance.cpp
  * Author: Alyssa Kubota, Sanmi Adeleye
  * Date: 02/18/2018
@@ -27,10 +27,11 @@ int16_t goal_sum_x = 0;
 int16_t goal_sum_y = 0;
 double goal_area = 0;
 double Center = 320;
-std::vector<uint16_t> goal_xs;
-bool is_pre_obs = false;
+bool pre_obs = false;
+int dis = 0;
 
->>>>>>> my-temp-branch
+std::vector<uint16_t> goal_xs;
+
 
 /************************************************************
  * Function Name: blobsCallBack
@@ -42,7 +43,7 @@ bool is_pre_obs = false;
 
 void blobsCallBack (const cmvision::Blobs& blobsIn) //this gets the centroid of the color blob corresponding to the goal.
 {
-    if ((state == 0 || state == 3 || state == 4 || state == 5)&& blobsIn.blob_count > 0){
+    if (state == 0 && blobsIn.blob_count > 0){
         
 		/************************************************************
 		* These blobsIn.blobs[i].red, blobsIn.blobs[i].green, and blobsIn.blobs[i].blue values depend on the
@@ -71,7 +72,6 @@ void blobsCallBack (const cmvision::Blobs& blobsIn) //this gets the centroid of 
             }
 		}
 
-        found_goal = true; 
         if(goalx > 450){
             std::cout << "on right side " << std::endl;
             state = 3;
@@ -87,10 +87,9 @@ void blobsCallBack (const cmvision::Blobs& blobsIn) //this gets the centroid of 
     }
 
     //Cannot find goal
-    else if(state == 0){
+    else if (state == 0){
         std::cout << "can't find the goal, turning" << std::endl;
-//        state = 6;
-    }else
+    }
 }
 
 /************************************************************
@@ -119,7 +118,7 @@ void PointCloud_Callback (const PointCloud::ConstPtr& cloud){
   PCL_closest_points_y.clear();
 
   double z_min = 100;
-  if (state ==6){
+  if (dis > 0){
        return;
   }
   //Iterate through all the points in the image
@@ -150,29 +149,24 @@ void PointCloud_Callback (const PointCloud::ConstPtr& cloud){
 
 
       std::cout << "found obstacle" << std::endl;
-
-      is_pre_obs = true;
+      pre_obs = true;
       if(totalx / totalnum > 320){
-          if (found_goal){
-              state = 6;
-              return;
-          }else{
-              state = 1;
-          }
+         state = 1;
          // std::cout << "Many points? State 1" << std::endl;
       }
       else{
-    //      state = 2;
+          state = 2;
          // std::cout << "Less points? State 2?" << std::endl;
       }
   }
   else{
-      if(is_pre_obs){
-         state = 6;
- //        is_pre_obs = false;
-       }else{
+         if(pre_obs){
+
+            std::cout << "avoid" <<std::endl;
+            dis = 25;
+            pre_obs = false;
+         }
          state = 0;
-       }
   }
 }
 
@@ -194,7 +188,7 @@ int main (int argc, char** argv)
 
   ros::Rate loop_rate(10);
 
-//  ros::Rate sleep(300000);
+  ros::Rate st(100000);
   geometry_msgs::Twist T;
 
   while(ros::ok()){
@@ -202,15 +196,25 @@ int main (int argc, char** argv)
     T.linear.x = 0.0; T.linear.y = 0.0; T.linear.z = 0.0;
     T.angular.x = 0.0; T.angular.y = 0.0; T.angular.z = 0.0;//-0.5;
 
+    if(dis > 0){
+        std::cout<<"go away!" << std::endl;
+        T.linear.x = 0.2;
+        dis --;
+        if(dis == 0){
+            state = 0;
+        }
+        ros::spinOnce();
+        loop_rate.sleep();
+        velocityPublisher.publish(T);
+        continue;
+    }
     std::cout << state << std::endl;
     //Looking for goal
     if (state == 0){
-        T.angular.z = -0.5;
+        T.angular.z = -0.5; 
     }
     else if (state == 1){
         T.angular.z = -0.5;
-        state = 2;
- //       state = 0;
     } 
     else if (state == 2) {
         T.angular.z = -0.5;
@@ -222,17 +226,6 @@ int main (int argc, char** argv)
         T.angular.z = 0.5; 
     }
     else if (state == 5){ 
-        T.angular.z = 0;
-        T.linear.x = 0.2;
-    }else if (state ==6){
-        T.linear.x = 0;
-        T.angular.z = 0;
-    }
-    else if (state == 7){
-        T.angular.z = 0.5;
-        state = 0;
-    }
-    else if(state == 6){
         T.linear.x = 0.2;
     }
     // Spin
@@ -241,4 +234,3 @@ int main (int argc, char** argv)
     velocityPublisher.publish(T);
   }
 }
-
