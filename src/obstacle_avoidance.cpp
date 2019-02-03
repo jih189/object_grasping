@@ -163,7 +163,7 @@ void PointCloud_Callback (const PointCloud::ConstPtr& cloud){
          if(pre_obs){
 
             std::cout << "avoid" <<std::endl;
-            dis = 25;
+            dis = 35;
             pre_obs = false;
          }
          state = 0;
