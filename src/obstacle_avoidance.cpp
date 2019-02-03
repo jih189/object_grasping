@@ -160,8 +160,9 @@ void PointCloud_Callback (const PointCloud::ConstPtr& cloud){
       }
   }
   else{
+	  
+	 //if we previous see the obs, we should go forward to avoid it (Enter special state).
          if(pre_obs){
-
             std::cout << "avoid" <<std::endl;
             dis = 35;
             pre_obs = false;
@@ -195,7 +196,8 @@ int main (int argc, char** argv)
 
     T.linear.x = 0.0; T.linear.y = 0.0; T.linear.z = 0.0;
     T.angular.x = 0.0; T.angular.y = 0.0; T.angular.z = 0.0;//-0.5;
-
+	  
+//the special state where we go forward a constant distance.
     if(dis > 0){
         std::cout<<"go away!" << std::endl;
         T.linear.x = 0.2;
@@ -213,18 +215,23 @@ int main (int argc, char** argv)
     if (state == 0){
         T.angular.z = -0.5; 
     }
+    //encounter obs
     else if (state == 1){
         T.angular.z = -0.5;
     } 
+	  // encounter obs
     else if (state == 2) {
         T.angular.z = -0.5;
     }
+	  //goal on left
     else if (state == 3){
         T.angular.z = -0.5;
     }
+	  //goal on right
     else if (state == 4){
         T.angular.z = 0.5; 
     }
+	  //goal straight
     else if (state == 5){ 
         T.linear.x = 0.2;
     }
