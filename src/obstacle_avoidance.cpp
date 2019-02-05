@@ -1,12 +1,11 @@
-//Jiaxiang Liang, Dingcheng Hu, Jiaming Hu
 /**********************************************************
  * Name: obstacle_avoidance.cpp
- * Author: Alyssa Kubota, Sanmi Adeleye
- * Date: 02/18/2018
+ * Author: Jiaxiang Liang, Dingcheng Hu, Jiaming Hu
+ * Date: Feb 5 2019
  *
- * Description: This program will subscribe to the /blobs topic,
+ * Description: This program will subscribe to the blobs and point cloud topic,
  *        and use the blob information to find and go towards
- *        the blobs in a user-set order.
+ *        the blobs in a user-set order. The robot will use point cloud to avoid obstacle.
  ***********************************************************/
 
 #include <kobuki_msgs/BumperEvent.h> 
@@ -190,7 +189,7 @@ int main (int argc, char** argv)
 
   ros::Rate loop_rate(10);
 
-  ros::Rate st(100000);
+//  ros::Rate st(100000);
   geometry_msgs::Twist T;
 
   while(ros::ok()){
