@@ -61,7 +61,7 @@ void image_Callback (const sensor_msgs::ImageConstPtr& msg)
 {
 
   II = visp_bridge::toVispImage(*msg);
-  vpImageTools::crop(II, 0, 0, II.getHeight() - 200, II.getWidth(), I);
+  vpImageTools::crop(II, 300, 0, II.getHeight()-300, II.getWidth(), I);
 
   if(state == 0){
     /*open cv */
@@ -70,23 +70,46 @@ void image_Callback (const sensor_msgs::ImageConstPtr& msg)
     cv::Mat src, dst;
     src = CVI->image;
     // crop the image
-    cv::Rect roi(0,0,src.cols,600);
+    cv::Rect roi(0,300,src.cols,src.rows-300);
     src = src(roi);
 
     std::vector<vpImagePoint> curCornerPoints;
 
     /* good features to track*/
-    std::vector<cv::Point2f> corners;
+    std::vector<cv::Point> corners;
+    std::vector<cv::Point> edgecorners;
     cv::Mat src_gray;
     cv::cvtColor(src, src_gray, cv::COLOR_BGR2GRAY);
-    cv::goodFeaturesToTrack(src_gray, corners, 50, 0.01, 15, cv::Mat(), 3, false, 0.04);
-    /*
-    for(int i = 0; i < corners.size(); i++){
-      cv::circle(src,corners[i],2,cv::Scalar(0,0,255),1,8,0); 
+    // find straight lines
+    Canny(src, dst, 50, 200, 3);
+
+    std::vector<cv::Vec4i> lines; 
+    HoughLinesP(dst, lines, 1, CV_PI/180, 35, 30, 10);
+
+    std::vector<cv::Point> edgePoints;
+
+    // draw lines
+    for(size_t i = 0; i < lines.size(); i++){
+        cv::Vec4i l = lines[i];
+        edgePoints.push_back(cv::Point(l[0], l[1]));
+        edgePoints.push_back(cv::Point(l[2], l[3]));
     }
+    
+    cv::goodFeaturesToTrack(src_gray, corners, 20, 0.08, 3, cv::Mat(), 3, false, 0.04);
+    for(int i = 0; i < corners.size(); i++){
+        for(int j = 0; j < edgePoints.size(); j++){
+            if(cv::norm(corners[i] - edgePoints[j]) <= 4){
+                edgecorners.push_back(corners[i]);
+                break;
+            }
+        }
+    }
+    for(int i = 0; i < edgecorners.size(); i++){
+      cv::circle(src,edgecorners[i],2,cv::Scalar(0,0,255),1,3,0); 
+    }
+
     cv::imshow("view", src);
     cv::waitKey(3);
-    */
 
     for(size_t i = 0; i < corners.size(); i++){
       curCornerPoints.push_back(vpImagePoint((int)corners[i].y,(int)corners[i].x));
@@ -100,28 +123,26 @@ void image_Callback (const sensor_msgs::ImageConstPtr& msg)
     vpImagePoint iPref, iPcur;
 
     // get key points in reference image
-    /*
     for(unsigned int i = 0; i < nbMatch; i++){
       keypoint.getMatchedPoints(i, iPref, iPcur);
       vpDisplay::displayPoint(iDisp, iPref, vpColor::red, 2);
     }
-    */
 
     // show all corner point currently
-    /*
     for(unsigned int i = 0; i < curCornerPoints.size(); i++){
       vpDisplay::displayPoint(iDisp, curCornerPoints[i] + vpImagePoint(0, rI.getWidth()), vpColor::green, 2);
     }
-    */
     int numOfMatchCorner = 0;
     pairCornerPoints.clear();
     // for each select corner points
     for(unsigned int k = 0; k < refCorners.size(); k++){
+      vpDisplay::displayPoint(iDisp, refCorners[k], vpColor::green, 2);
       // search all keypoints around the corner point
       int foundmatch = 0;
       for(unsigned int i = 0; i < nbMatch; i++){
         keypoint.getMatchedPoints(i, iPref, iPcur);
         if(vpImagePoint::distance(iPref, refCorners[k]) < 5){
+          vpDisplay::displayLine(iDisp, iPref, iPcur + vpImagePoint(0,rI.getWidth()), vpColor::blue, 1);
           for(unsigned int j = 0; j < curCornerPoints.size(); j++){
             if(vpImagePoint::distance(curCornerPoints[j], iPcur) < 5){
               vpDisplay::displayLine(iDisp, refCorners[k], curCornerPoints[j] + vpImagePoint(0,rI.getWidth()), vpColor::green, 1);
@@ -132,16 +153,14 @@ void image_Callback (const sensor_msgs::ImageConstPtr& msg)
               break;
             } 
           }
-          //vpDisplay::displayLine(iDisp, iPref, iPcur + vpImagePoint(0,rI.getWidth()), vpColor::blue, 1);
         }
-        //vpDisplay::displayPoint(iDisp, iPcur + vpImagePoint(0,rI.getWidth()), vpColor::red, 2);
         if(foundmatch == 1){
           break;
         }
       }
     }
     vpDisplay::flush(iDisp);
-    if(numOfMatchCorner > 3){
+    if(numOfMatchCorner < -1){
 
       state = 1;
       std::cout << "found match points\n";
@@ -149,6 +168,17 @@ void image_Callback (const sensor_msgs::ImageConstPtr& msg)
         std::cout << pairCornerPoints[i] << std::endl;
       }
       delete display;
+      // get cam value
+      double u0 = I.getWidth() / 2;
+      double v0 = I.getHeight() / 2;
+      double px = 600;
+      double py = 600;
+      cam.initPersProjWithoutDistortion(px, py, u0, v0);
+      cam.computeFov(I.getWidth(), I.getHeight());
+      std::cout << cam << std::endl;
+      std::cout << "Field of view (horizontal: " << vpMath::deg(cam.getHorizontalFovAngle())
+                << " and vertical: " << vpMath::deg(cam.getVerticalFovAngle())
+                << " degrees)" << std::endl;
       iDisp.init(I.getHeight(), I.getWidth());
       iDisp.insert(I, vpImagePoint(0,0));
       display = new vpDisplayOpenCV(iDisp, 0, 0, "find the location");
@@ -167,7 +197,7 @@ void image_Callback (const sensor_msgs::ImageConstPtr& msg)
 
       vpKltOpencv klt_settings;
       klt_settings.setMaxFeatures(300);
-      klt_settings.setWindowSize(5);
+      klt_settings.setWindowSize(10);
       klt_settings.setQuality(0.015);
       klt_settings.setMinDistance(8);
       klt_settings.setHarrisFreeParameter(0.01);
@@ -176,10 +206,10 @@ void image_Callback (const sensor_msgs::ImageConstPtr& msg)
       dynamic_cast<vpMbKltTracker *>(tracker)->setKltOpencv(klt_settings);
       dynamic_cast<vpMbKltTracker *>(tracker)->setKltMaskBorder(5);
       //todo update camera values
-      cam.initPersProjWithoutDistortion(839, 839, 325, 243);
+      cam.initPersProjWithoutDistortion(600, 600, 400, 300);
       tracker->setCameraParameters(cam);
       tracker->loadModel("megablock1x3.cao");
-      tracker->setDisplayFeatures(true);
+      tracker->setDisplayFeatures(false);
      
       std::ifstream readfile;
       std::ofstream writefile;
@@ -233,7 +263,8 @@ int main (int argc, char** argv)
   ros::NodeHandle nh;
   state = 0;
 
-  ros::Subscriber sub = nh.subscribe("/cameras/head_camera/image", 100, image_Callback);
+  //ros::Subscriber sub = nh.subscribe("/cameras/head_camera/image", 100, image_Callback);
+  ros::Subscriber sub = nh.subscribe("/cameras/right_hand_camera/image", 100, image_Callback);
   ros::spinOnce();
 
   vpKeyPoint::vpFilterMatchingType filterType = vpKeyPoint::ratioDistanceThreshold;
@@ -245,16 +276,21 @@ int main (int argc, char** argv)
   //refCorners.push_back(vpImagePoint(380,412));
   //refCorners.push_back(vpImagePoint(405,373));
   //refCorners.push_back(vpImagePoint(405,412));
-  vpImageIo::read(rI, "right.png");
-  refCorners.push_back(vpImagePoint(303,245));
-  refCorners.push_back(vpImagePoint(303,281));
-  refCorners.push_back(vpImagePoint(223,292));
-  refCorners.push_back(vpImagePoint(324,285));
+  //vpImageIo::read(rI, "right.png");
+  //refCorners.push_back(vpImagePoint(303,245));
+  //refCorners.push_back(vpImagePoint(303,281));
+  //refCorners.push_back(vpImagePoint(223,292));
+  //refCorners.push_back(vpImagePoint(324,285));
+  vpImageIo::read(rI, "right_hand_img.png");
+  refCorners.push_back(vpImagePoint(339,185));
+  refCorners.push_back(vpImagePoint(339,292));
+  refCorners.push_back(vpImagePoint(167,324));
+  refCorners.push_back(vpImagePoint(410,302));
   I.init(600,800);
   std::cout << "reference keypoints = " << keypoint.buildReference(rI) << std::endl;
 
   //show display image
-  iDisp.init(std::max(rI.getHeight(), I.getHeight()), rI.getWidth() + I.getWidth());
+  iDisp.init(std::max(rI.getHeight(), I.getHeight()-300), rI.getWidth() + I.getWidth());
   iDisp.insert(rI, vpImagePoint(0,0));
   display = new vpDisplayOpenCV(iDisp, 0, 0, "Matching keypoints with ORB keypoints");
   vpDisplay::display(iDisp);
